@@ -15,7 +15,8 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from data_analysis import extract_from_tables_pdf, analyze
 load_dotenv()
 
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+GOOGLE_API_KEY=st.secrets["GOOGLE_API_KEY"]
+genai.configure(api_key=GOOGLE_API_KEY)
 
 
 #go through each and every pdf and extracts the texts from pdf
