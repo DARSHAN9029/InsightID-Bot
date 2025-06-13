@@ -1,5 +1,5 @@
 # 📊InsightIQ : A bot who can Analyze and Chat!
-A powerful Streamlit-based web application by using "Gemini 1.5 Flash" model and "gemini embeddings004" that lets you:
+A powerful Streamlit-based web application by using "Gemini 1.5 Flash" model and "HuggingFaceEmbeddings" that lets you:
 
 - 📥 Upload PDF or CSV files
 - 💬 Chat with content from PDFs (text-based)
@@ -8,7 +8,7 @@ A powerful Streamlit-based web application by using "Gemini 1.5 Flash" model and
 
 ---
 ## 🔗 Live App
-[Click here to visit deployed Streamlit app]()
+[Click here to visit deployed Streamlit app](insightiq-bot.streamlit.app/)
 
 ---
 ## 🚀 Features
