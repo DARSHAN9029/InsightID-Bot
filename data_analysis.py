@@ -4,6 +4,7 @@ import pdfplumber
 import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
+import random
 
 
 #extarct tables from pdf and csv
@@ -48,11 +49,15 @@ def analyze(tables):
             except:
                 continue
 
-        numeric_cols = df.select_dtypes(include='number').columns
+        numeric_cols = df.select_dtypes(include=["int64","float64"]).columns
 
         if len(numeric_cols) >= 2:
-            st.write(f"### Scatter Plot between `{numeric_cols[0]}` and `{numeric_cols[1]}`")
-            fig = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1])
+            selectable_cols = list(numeric_cols[1:])    #ensures columns is a list
+            random_cols=random.sample(selectable_cols, 2)
+
+            st.write(f"### Scatter Plot between `{random_cols[0]}` and `{random_cols[1]}`")
+            fig = px.scatter(df, x=random_cols[0], y=random_cols[1])
+
             st.plotly_chart(fig)
 
         elif len(numeric_cols) == 1:
