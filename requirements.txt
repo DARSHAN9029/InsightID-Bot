@@ -11,3 +11,4 @@ pdfplumber
 plotly
 seaborn
 matplotlib
+sentence-transformers

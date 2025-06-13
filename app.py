@@ -10,6 +10,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains.question_answering import load_qa_chain
 from dotenv import load_dotenv
 import pandas as pd
+from langchain.embeddings import HuggingFaceEmbeddings
 
 from data_analysis import extract_from_tables_pdf, analyze
 load_dotenv()
@@ -49,7 +50,7 @@ def get_text_chunks(text):
 
 #storing chunks in the vector database and upload the embeddings
 def get_vector_store(text_chunks):
-    embeddings=GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+    embeddings=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vector_store=FAISS.from_texts(text_chunks,embedding=embeddings)
     vector_store.save_local("faiss_index")
 
@@ -64,7 +65,7 @@ def get_conversational_chain():
     Answer:
     """
 
-    model=ChatGoogleGenerativeAI(model="gemini-1.5-flash-8b",temperature=0.3)
+    model=ChatGoogleGenerativeAI(model="gemini-1.5-flash",temperature=0.3)
 
     prompt=PromptTemplate(template=prompt_template,input_variables=["context","question"])
     chain=load_qa_chain(model,chain_type="stuff",prompt=prompt)
@@ -73,7 +74,7 @@ def get_conversational_chain():
 
 #wrt user
 def user_input(user_question):
-    embbeddings=GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+    embbeddings=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     new_db=FAISS.load_local("faiss_index",embbeddings,allow_dangerous_deserialization=True)
     docs=new_db.similarity_search(user_question)
@@ -89,7 +90,6 @@ def user_input(user_question):
 
 
 #streamlit app
-
 def main():
     st.set_page_config("Chat with multiple pdf")
     st.header("InsightIQ: A bot who can Analyze and Chat!")
