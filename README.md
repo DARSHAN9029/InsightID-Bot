@@ -7,7 +7,7 @@ A powerful Streamlit-based web application by using "Gemini 1.5 Flash" model and
 - 🔍 Discover trends, patterns, and relationships across columns
 
 ---
-## 🔗 Live App
+## 🔗Live App
 [Click here to visit deployed Streamlit app](insightiq-bot.streamlit.app/)
 
 ---
