@@ -51,7 +51,10 @@ def get_text_chunks(text):
 
 #storing chunks in the vector database and upload the embeddings
 def get_vector_store(text_chunks):
-    embeddings=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    embeddings=HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={"device":"cpu"})
+    
     vector_store=FAISS.from_texts(text_chunks,embedding=embeddings)
     vector_store.save_local("faiss_index")
 
