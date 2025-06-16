@@ -43,21 +43,22 @@ Supports any structured table inside PDFs or CSV files(Click "*Analyze*" for ana
 ## 🛠 Installation
 
 ### 1. Clone the repo
-bash
+```
 git clone https://github.com/DARSHAN9029/InsightID-Bot.git
-
+```
 ### 2. Create a virtual environment
-
+```
 python -m venv myenv
-
+```
 ### 3. Install dependencies
-
+```
 pip install -r requirements.txt
-
+```
 ---
 ▶ Running the App
-bash
+```
 streamlit run app.py
+```
 
 ---
 ## Screehshots:
