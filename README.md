@@ -1,7 +1,7 @@
 # 📊InsightIQ : A bot who can Analyze and Chat!
 A powerful Streamlit-based web application by using "Gemini 1.5 Flash" model and "HuggingFaceEmbeddings" that lets you:
 
-- 📥 Upload PDF or CSV files(Click *Browse* for uploading the file)
+- 📥 Upload PDF or CSV files(Click "*Browse*" for uploading the file)
 - 💬 Chat with content from PDFs (text-based)
 - 📈 Automatically analyze and visualize tabular data
 - 🔍 Discover trends, patterns, and relationships across columns
