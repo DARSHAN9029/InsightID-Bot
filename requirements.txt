@@ -12,3 +12,6 @@ plotly
 seaborn
 matplotlib
 sentence-transformers
+fpdf
+transformers
+kaleido

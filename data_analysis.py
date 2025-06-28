@@ -5,6 +5,10 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
 import random
+import os
+import tempfile
+import kaleido
+from export import export_file
 
 
 #extarct tables from pdf and csv
@@ -33,62 +37,118 @@ def extract_from_tables_pdf(pdf_docs):
 
 #anayze and visualize the extracted tables
 def analyze(tables):
-    st.subheader("Data Analysis & Visualizations")
-
+    st.subheader("📊 Data Analysis & Enhanced Visualizations")
     if not tables:
-        st.warning("No tables found in the uploaded PDF files.")
+        st.warning("No tables found in the uploaded files.")
         return
 
+    #paths for storing plots
+    if "plot_paths" not in st.session_state:
+        st.session_state.plot_paths=[]
+
+    if "temp_dir" not in st.session_state:
+        st.session_state.temp_dir=tempfile.mkdtemp()
+
+
     for i, df in enumerate(tables):
-        st.markdown(f"### Table {i+1}")
+        st.markdown(f"### 📄 Table {i+1}")
         st.dataframe(df)
 
-        for col in df.columns:      #tables to numeric conversion
+        for col in df.columns:
             try:
                 df[col] = pd.to_numeric(df[col])
             except:
                 continue
 
-        numeric_cols = df.select_dtypes(include=["int64","float64"]).columns
+        numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
 
         if len(numeric_cols) >= 2:
-            selectable_cols = list(numeric_cols[1:])    #ensures columns is a list
-            random_cols=random.sample(selectable_cols, 2)
+            selectable_cols = list(numeric_cols[1:])
+            if len(selectable_cols) >= 2:
+                random_cols = random.sample(selectable_cols, 2)
 
-            st.write(f"### Scatter Plot between `{random_cols[0]}` and `{random_cols[1]}`")
-            fig = px.scatter(df, x=random_cols[0], y=random_cols[1])
-
-            st.plotly_chart(fig)
+                st.write(f"### 🎯 Scatter Plot: `{random_cols[0]}` vs `{random_cols[1]}`")
+                fig = px.scatter(
+                    df, x=random_cols[0], y=random_cols[1],
+                    color=random_cols[0],
+                    symbol=random_cols[1],
+                    size=random_cols[1],
+                    hover_data=df.columns,
+                    title=f"Scatter Plot between {random_cols[0]} and {random_cols[1]}",
+                    template="plotly_dark"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                path = os.path.join(st.session_state.temp_dir, f"table_{i}_scatter.png")
+                fig.write_image(path)
+                st.session_state.plot_paths.append(path)
 
         elif len(numeric_cols) == 1:
-            # Use column with highest standard deviation
             col_to_plot = df[numeric_cols].std().idxmax()
 
-            st.write(f"Bar Plot: `{col_to_plot}` (most variable column)")
-            fig = px.bar(df, x=df.index, y=col_to_plot, title=f"Bar Chart of {col_to_plot}")
-            st.plotly_chart(fig)
+            st.write(f"### 📊 Bar Plot: `{col_to_plot}`")
+            fig = px.bar(
+                df.sort_values(by=col_to_plot, ascending=False),
+                x=df.index,
+                y=col_to_plot,
+                color=col_to_plot,
+                title=f"Bar Chart of {col_to_plot}",
+                template="plotly_white"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            path = os.path.join(st.session_state.temp_dir, f"table_{i}_bar.png")
+            fig.write_image(path)
+            st.session_state.plot_paths.append(path)
 
-        # Scatter Matrix (Pairwise Plots)
-        if len(numeric_cols) >= 2:
-            st.markdown("#### 🔁 Scatter Matrix (Pairwise Numeric Columns)")
-            fig = px.scatter_matrix(df, dimensions=numeric_cols, title="Scatter Matrix")
-            st.plotly_chart(fig)
+        # Scatter Matrix
+        if len(numeric_cols) >= 3:
+            st.markdown("#### 🔁 Scatter Matrix (Pairwise)")
+            fig = px.scatter_matrix(
+                df,
+                dimensions=numeric_cols,
+                color=numeric_cols[0],
+                title="Scatter Matrix of Numeric Columns",
+                template="simple_white"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            path = os.path.join(st.session_state.temp_dir, f"table_{i}_matrix.png")
+            fig.write_image(path)
+            st.session_state.plot_paths.append(path)
 
         # Correlation Heatmap
         if len(numeric_cols) >= 2:
-            st.markdown("#### 🔥 Correlation Heatmap")
-
+            st.markdown("#### 🌡️ Correlation Heatmap")
             corr = df[numeric_cols].corr()
-            fig, ax = plt.subplots(figsize=(8, 6))
-            sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
+            fig, ax = plt.subplots(figsize=(10, 6))
+            sns.heatmap(
+                corr,
+                annot=True,
+                cmap="RdYlGn",
+                fmt=".2f",
+                linewidths=0.5,
+                linecolor='gray',
+                cbar_kws={"shrink": .75}
+            )
+            ax.set_title("Correlation Matrix", fontsize=14)
             st.pyplot(fig)
 
-        # Multi-Line Plot (Assumes index or column represents time/order)
+            path = os.path.join(st.session_state.temp_dir, f"table_{i}_heatmap.png")
+            fig.savefig(path)
+            plt.close(fig)
+            st.session_state.plot_paths.append(path)
+
+        # Multi-Line Trend Plot
         if len(numeric_cols) >= 2:
             st.markdown("#### 📈 Multi-Line Trend Plot")
-            # Use index as X if it looks like a sequence (or add time col detection later)
-            fig = px.line(df[numeric_cols], title="Multi-Line Plot of Numeric Columns")
-            st.plotly_chart(fig)
+            fig = px.line(
+                df[numeric_cols],
+                title="Multi-Line Trend of Numeric Columns",
+                markers=True,
+                template="plotly_dark"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            path = os.path.join(st.session_state.temp_dir, f"table_{i}_line.png")
+            fig.write_image(path)
+            st.session_state.plot_paths.append(path)
 
         else:
             st.info("No numeric data available for plotting in this table.")
