@@ -114,6 +114,7 @@ def main():
         unsafe_allow_html=True
     )
 
+
     # Tabs for interaction
     tab1, tab2 = st.tabs(["💬", "📈"])
 
