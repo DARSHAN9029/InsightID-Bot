@@ -49,8 +49,10 @@ def analyze(tables):
     if "temp_dir" not in st.session_state:
         st.session_state.temp_dir=tempfile.mkdtemp()
 
-
     for i, df in enumerate(tables):
+        ignore_cols = [col for col in df.columns if 'id' in col.lower() or 'unnamed' in col.lower()]    # Remove unwanted columns like 'id', 'unnamed'
+        df = df.drop(columns=ignore_cols, errors='ignore')
+
         st.markdown(f"### 📄 Table {i+1}")
         st.dataframe(df)
 
@@ -60,8 +62,15 @@ def analyze(tables):
             except:
                 continue
 
-        numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
 
+        numeric_cols = [     # Only select truly numeric columns with enough unique values
+            col for col in df.select_dtypes(include=["int64", "float64"]).columns
+            if df[col].nunique() > 5  # Exclude low-cardinality numerics (e.g., flags or IDs)
+        ]
+
+
+
+    #PLOTTINGS
         if len(numeric_cols) >= 2:
             selectable_cols = list(numeric_cols[1:])
             if len(selectable_cols) >= 2:
@@ -149,6 +158,30 @@ def analyze(tables):
             path = os.path.join(st.session_state.temp_dir, f"table_{i}_line.png")
             fig.write_image(path)
             st.session_state.plot_paths.append(path)
+
+                # 📊 Categorical Columns (object or low unique count)
+        cat_cols = [
+            col for col in df.columns
+            if df[col].dtype == 'object' or df[col].nunique() <= 5
+        ]
+
+        if cat_cols:
+            st.markdown("#### 🧩 Categorical Columns Overview")
+            for col in cat_cols:
+                try:
+                    fig = px.histogram(
+                        df,
+                        x=col,
+                        color_discrete_sequence=["#FF6F61"],
+                        title=f"Count Plot for '{col}'"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    path = os.path.join(st.session_state.temp_dir, f"table_{i}_cat_{col}.png")
+                    fig.write_image(path)
+                    st.session_state.plot_paths.append(path)
+                except Exception as e:
+                    st.warning(f"⚠️ Skipped column '{col}': {e}")
+
 
         else:
             st.info("No numeric data available for plotting in this table.")

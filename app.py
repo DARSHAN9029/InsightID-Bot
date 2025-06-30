@@ -116,7 +116,7 @@ def main():
 
 
     # Tabs for interaction
-    tab1, tab2 = st.tabs(["💬", "📈"])
+    tab1, tab2 = st.tabs(["💬 CHAT", "📈 ANALYZE"])
 
     # Session for chat history
     if "messages" not in st.session_state:
