@@ -77,7 +77,6 @@ def analyze(tables):
         def save_file_as_image(fig, path):
             try:
                 pio.write_html(fig, file=path.replace(".png", ".html"), auto_open=False)
-                # Optional: You can also save fig.show() screenshots manually
                 st.session_state.plot_paths.append(path.replace(".png", ".html"))
             except Exception as e:
                 st.warning(f"Couldn't export plot to image: {e}")
