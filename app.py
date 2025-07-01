@@ -8,16 +8,15 @@ from langchain.vectorstores import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import PromptTemplate
 from langchain.chains.question_answering import load_qa_chain
-from dotenv import load_dotenv
 import pandas as pd
 from langchain.embeddings import HuggingFaceEmbeddings
 
 
 from data_analysis import extract_from_tables_pdf, analyze
 from export import export_file
-load_dotenv()
 
-GOOGLE_API_KEY=st.secrets["GOOGLE_API_KEY"]
+
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
 
 
