@@ -7,7 +7,8 @@ import seaborn as sns
 import random
 import os
 import tempfile
-import kaleido
+from PIL import Image
+import io
 import re
 from export import export_file
 
@@ -38,6 +39,7 @@ def extract_from_tables_pdf(pdf_docs):
 def safe_filename(name, max_length=50):     #for avioding filename and runtime error
     """Sanitize a string to be used as a safe filename."""
     return re.sub(r'[^a-zA-Z0-9_]', '_', name)[:max_length]
+
 
 #anayze and visualize the extracted tables
 def analyze(tables):
@@ -71,8 +73,12 @@ def analyze(tables):
             col for col in df.select_dtypes(include=["int64", "float64"]).columns
             if df[col].nunique() > 5  # Exclude low-cardinality numerics (e.g., flags or IDs)
         ]
-
-
+        
+        def save_file_as_image(fig, path):
+            img_bytes = fig.to_image(format="png")
+            img = Image.open(io.BytesIO(img_bytes))
+            img.save(path)
+            st.session_state.plot_paths.append(path)
 
     #PLOTTINGS
         if len(numeric_cols) >= 2:
@@ -95,7 +101,7 @@ def analyze(tables):
                 y_col=safe_filename(random_cols[1])
                 path = os.path.join(st.session_state.temp_dir, f"table_{i}_scatter_{x_col}_{y_col}.png")
                 fig.write_image(path)
-                st.session_state.plot_paths.append(path)
+                save_file_as_image(fig,path)
 
         elif len(numeric_cols) == 1:
             col_to_plot = df[numeric_cols].std().idxmax()
@@ -112,8 +118,7 @@ def analyze(tables):
             st.plotly_chart(fig, use_container_width=True)
             col_bar=safe_filename(col_to_plot)
             path = os.path.join(st.session_state.temp_dir, f"table_{i}_bar_{col_bar}.png")
-            fig.write_image(path)
-            st.session_state.plot_paths.append(path)
+            save_file_as_image(fig , path)
 
         # Scatter Matrix
         if len(numeric_cols) >= 3:
@@ -128,8 +133,7 @@ def analyze(tables):
             st.plotly_chart(fig, use_container_width=True)
             first_col = safe_filename(numeric_cols[0]) if numeric_cols else "matrix"
             path = os.path.join(st.session_state.temp_dir, f"table_{i}_matrix_{first_col}.png")
-            fig.write_image(path)
-            st.session_state.plot_paths.append(path)
+            save_file_as_image(fig,path)
 
         # Correlation Heatmap
         if len(numeric_cols) >= 2:
@@ -163,10 +167,9 @@ def analyze(tables):
             )
             st.plotly_chart(fig, use_container_width=True)
             path = os.path.join(st.session_state.temp_dir, f"table_{i}_line_trend.png")
-            fig.write_image(path)
-            st.session_state.plot_paths.append(path)
+            save_file_as_image(fig,path)            
 
-                # 📊 Categorical Columns (object or low unique count)
+        # 📊 Categorical Columns (object or low unique count)
         cat_cols = [
             col for col in df.columns
             if df[col].dtype == 'object' or df[col].nunique() <= 5
@@ -185,8 +188,7 @@ def analyze(tables):
                     st.plotly_chart(fig, use_container_width=True)
                     safe_col=re.sub(r'[^a-zA-Z0-9_]','_',col)[:50]  #sanitize and truncate 
                     path = os.path.join(st.session_state.temp_dir, f"table_{i}_cat_{safe_col}.png")
-                    fig.write_image(path)
-                    st.session_state.plot_paths.append(path)
+                    save_file_as_image(fig,path)
                 except Exception as e:
                     st.warning(f"⚠️ Skipped column '{col}': {e}")
 
