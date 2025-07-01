@@ -100,7 +100,6 @@ def analyze(tables):
                 x_col=safe_filename(random_cols[0])
                 y_col=safe_filename(random_cols[1])
                 path = os.path.join(st.session_state.temp_dir, f"table_{i}_scatter_{x_col}_{y_col}.png")
-                fig.write_image(path)
                 save_file_as_image(fig,path)
 
         elif len(numeric_cols) == 1:
