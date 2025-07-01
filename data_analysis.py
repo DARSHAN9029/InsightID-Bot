@@ -11,7 +11,7 @@ from PIL import Image
 import io
 import re
 from export import export_file
-
+import plotly.io as pio
 
 #extarct tables from pdf and csv
 def extract_from_tables_pdf(pdf_docs):
@@ -75,10 +75,12 @@ def analyze(tables):
         ]
         
         def save_file_as_image(fig, path):
-            img_bytes = fig.to_image(format="png")
-            img = Image.open(io.BytesIO(img_bytes))
-            img.save(path)
-            st.session_state.plot_paths.append(path)
+            try:
+                pio.write_html(fig, file=path.replace(".png", ".html"), auto_open=False)
+                # Optional: You can also save fig.show() screenshots manually
+                st.session_state.plot_paths.append(path.replace(".png", ".html"))
+            except Exception as e:
+                st.warning(f"Couldn't export plot to image: {e}")
 
     #PLOTTINGS
         if len(numeric_cols) >= 2:
