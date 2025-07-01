@@ -8,11 +8,11 @@ import random
 import os
 import tempfile
 import kaleido
+import re
 from export import export_file
 
 
 #extarct tables from pdf and csv
-
 def extract_from_tables_pdf(pdf_docs):
     all_tables = []
     for pdf_file in pdf_docs:
@@ -34,6 +34,10 @@ def extract_from_tables_pdf(pdf_docs):
     return all_tables
 
 
+
+def safe_filename(name, max_length=50):     #for avioding filename and runtime error
+    """Sanitize a string to be used as a safe filename."""
+    return re.sub(r'[^a-zA-Z0-9_]', '_', name)[:max_length]
 
 #anayze and visualize the extracted tables
 def analyze(tables):
@@ -87,7 +91,9 @@ def analyze(tables):
                     template="plotly_dark"
                 )
                 st.plotly_chart(fig, use_container_width=True)
-                path = os.path.join(st.session_state.temp_dir, f"table_{i}_scatter.png")
+                x_col=safe_filename(random_cols[0])
+                y_col=safe_filename(random_cols[1])
+                path = os.path.join(st.session_state.temp_dir, f"table_{i}_scatter_{x_col}_{y_col}.png")
                 fig.write_image(path)
                 st.session_state.plot_paths.append(path)
 
@@ -104,7 +110,8 @@ def analyze(tables):
                 template="plotly_white"
             )
             st.plotly_chart(fig, use_container_width=True)
-            path = os.path.join(st.session_state.temp_dir, f"table_{i}_bar.png")
+            col_bar=safe_filename(col_to_plot)
+            path = os.path.join(st.session_state.temp_dir, f"table_{i}_bar_{col_bar}.png")
             fig.write_image(path)
             st.session_state.plot_paths.append(path)
 
@@ -119,7 +126,8 @@ def analyze(tables):
                 template="simple_white"
             )
             st.plotly_chart(fig, use_container_width=True)
-            path = os.path.join(st.session_state.temp_dir, f"table_{i}_matrix.png")
+            first_col = safe_filename(numeric_cols[0]) if numeric_cols else "matrix"
+            path = os.path.join(st.session_state.temp_dir, f"table_{i}_matrix_{first_col}.png")
             fig.write_image(path)
             st.session_state.plot_paths.append(path)
 
@@ -139,7 +147,6 @@ def analyze(tables):
             )
             ax.set_title("Correlation Matrix", fontsize=14)
             st.pyplot(fig)
-
             path = os.path.join(st.session_state.temp_dir, f"table_{i}_heatmap.png")
             fig.savefig(path)
             plt.close(fig)
@@ -155,7 +162,7 @@ def analyze(tables):
                 template="plotly_dark"
             )
             st.plotly_chart(fig, use_container_width=True)
-            path = os.path.join(st.session_state.temp_dir, f"table_{i}_line.png")
+            path = os.path.join(st.session_state.temp_dir, f"table_{i}_line_trend.png")
             fig.write_image(path)
             st.session_state.plot_paths.append(path)
 
@@ -176,7 +183,8 @@ def analyze(tables):
                         title=f"Count Plot for '{col}'"
                     )
                     st.plotly_chart(fig, use_container_width=True)
-                    path = os.path.join(st.session_state.temp_dir, f"table_{i}_cat_{col}.png")
+                    safe_col=re.sub(r'[^a-zA-Z0-9_]','_',col)[:50]  #sanitize and truncate 
+                    path = os.path.join(st.session_state.temp_dir, f"table_{i}_cat_{safe_col}.png")
                     fig.write_image(path)
                     st.session_state.plot_paths.append(path)
                 except Exception as e:
