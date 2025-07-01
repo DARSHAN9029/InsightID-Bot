@@ -2,6 +2,7 @@ from fpdf import FPDF
 import os
 import tempfile
 import streamlit as st
+from PIL import Image
 
 
 def export_file(tables):
@@ -29,8 +30,9 @@ def export_file(tables):
             pdf.ln()
 
         for path in st.session_state.get("plot_paths",[]):
-            pdf.add_page()
-            pdf.image(path, w=pdf.w - 20)
+            if path.endswith(".png") and os.path.exists(path):
+                pdf.add_page()
+                pdf.image(path, w=pdf.w - 20)
 
     with tempfile.NamedTemporaryFile(delete=False , suffix=".pdf") as tmpfile:
         pdf.output(tmpfile.name)
