@@ -1,17 +1,13 @@
 import streamlit as st
 import pandas as pd
 import pdfplumber
-import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
 import random
 import os
 import tempfile
-from PIL import Image
-import io
 import re
 from export import export_file
-import plotly.io as pio
 
 #extarct tables from pdf and csv
 def extract_from_tables_pdf(pdf_docs):
@@ -22,9 +18,9 @@ def extract_from_tables_pdf(pdf_docs):
                 for page in pdf.pages:
                     tables = page.extract_tables()
                     for table in tables:
-                            if table:
-                                df = pd.DataFrame(table[1:], columns=table[0])
-                                all_tables.append(df)
+                        if table:
+                            df = pd.DataFrame(table[1:], columns=table[0])
+                            all_tables.append(df)
 
         elif pdf_file.name.endswith(".csv"):
             try:
@@ -33,7 +29,6 @@ def extract_from_tables_pdf(pdf_docs):
             except Exception as e:
                 st.warning(f"Couldn't read {pdf_file.name} as CSV. Error: {e}")
     return all_tables
-
 
 
 def safe_filename(name, max_length=50):     #for avioding filename and runtime error
@@ -48,15 +43,14 @@ def analyze(tables):
         st.warning("No tables found in the uploaded files.")
         return
 
-    #paths for storing plots
     if "plot_paths" not in st.session_state:
-        st.session_state.plot_paths=[]
+        st.session_state.plot_paths = []
 
     if "temp_dir" not in st.session_state:
-        st.session_state.temp_dir=tempfile.mkdtemp()
+        st.session_state.temp_dir = tempfile.mkdtemp()
 
     for i, df in enumerate(tables):
-        ignore_cols = [col for col in df.columns if 'id' in col.lower() or 'unnamed' in col.lower()]    # Remove unwanted columns like 'id', 'unnamed'
+        ignore_cols = [col for col in df.columns if 'id' in col.lower() or 'unnamed' in col.lower()]
         df = df.drop(columns=ignore_cols, errors='ignore')
 
         st.markdown(f"### 📄 Table {i+1}")
@@ -68,87 +62,58 @@ def analyze(tables):
             except:
                 continue
 
-
-        numeric_cols = [     # Only select truly numeric columns with enough unique values
+        numeric_cols = [
             col for col in df.select_dtypes(include=["int64", "float64"]).columns
-            if df[col].nunique() > 5  # Exclude low-cardinality numerics (e.g., flags or IDs)
+            if df[col].nunique() > 5
         ]
-        
-        def save_file_as_image(fig, path):
-            try:
-                pio.write_html(fig, file=path.replace(".png", ".html"), auto_open=False)
-                st.session_state.plot_paths.append(path.replace(".png", ".html"))
-            except Exception as e:
-                st.warning(f"Couldn't export plot to image: {e}")
 
-    #PLOTTINGS
+        def save_plt(path):
+            plt.tight_layout()
+            plt.savefig(path)
+            plt.close()
+            st.session_state.plot_paths.append(path)
+
         if len(numeric_cols) >= 2:
             selectable_cols = list(numeric_cols[1:])
             if len(selectable_cols) >= 2:
                 random_cols = random.sample(selectable_cols, 2)
 
                 st.write(f"### 🎯 Scatter Plot: `{random_cols[0]}` vs `{random_cols[1]}`")
-                fig = px.scatter(
-                    df, x=random_cols[0], y=random_cols[1],
-                    color=random_cols[0],
-                    symbol=random_cols[1],
-                    size=random_cols[1],
-                    hover_data=df.columns,
-                    title=f"Scatter Plot between {random_cols[0]} and {random_cols[1]}",
-                    template="plotly_dark"
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                x_col=safe_filename(random_cols[0])
-                y_col=safe_filename(random_cols[1])
-                path = os.path.join(st.session_state.temp_dir, f"table_{i}_scatter_{x_col}_{y_col}.png")
-                save_file_as_image(fig,path)
+                plt.figure(figsize=(8, 6))
+                plt.scatter(df[random_cols[0]], df[random_cols[1]], alpha=0.7, c='blue')
+                plt.xlabel(random_cols[0])
+                plt.ylabel(random_cols[1])
+                plt.title(f"Scatter Plot between {random_cols[0]} and {random_cols[1]}")
+                st.pyplot(plt)
+                path = os.path.join(st.session_state.temp_dir, f"table_{i}_scatter_{safe_filename(random_cols[0])}_{safe_filename(random_cols[1])}.png")
+                save_plt(path)
 
         elif len(numeric_cols) == 1:
             col_to_plot = df[numeric_cols].std().idxmax()
-
             st.write(f"### 📊 Bar Plot: `{col_to_plot}`")
-            fig = px.bar(
-                df.sort_values(by=col_to_plot, ascending=False),
-                x=df.index,
-                y=col_to_plot,
-                color=col_to_plot,
-                title=f"Bar Chart of {col_to_plot}",
-                template="plotly_white"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            col_bar=safe_filename(col_to_plot)
-            path = os.path.join(st.session_state.temp_dir, f"table_{i}_bar_{col_bar}.png")
-            save_file_as_image(fig , path)
+            plt.figure(figsize=(10, 6))
+            df[col_to_plot].head(30).plot(kind='bar', color='orange')
+            plt.title(f"Bar Chart of {col_to_plot}")
+            plt.xlabel("Index")
+            plt.ylabel(col_to_plot)
+            st.pyplot(plt)
+            path = os.path.join(st.session_state.temp_dir, f"table_{i}_bar_{safe_filename(col_to_plot)}.png")
+            save_plt(path)
 
-        # Scatter Matrix
         if len(numeric_cols) >= 3:
             st.markdown("#### 🔁 Scatter Matrix (Pairwise)")
-            fig = px.scatter_matrix(
-                df,
-                dimensions=numeric_cols,
-                color=numeric_cols[0],
-                title="Scatter Matrix of Numeric Columns",
-                template="simple_white"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            first_col = safe_filename(numeric_cols[0]) if numeric_cols else "matrix"
-            path = os.path.join(st.session_state.temp_dir, f"table_{i}_matrix_{first_col}.png")
-            save_file_as_image(fig,path)
+            sns_plot = sns.pairplot(df[numeric_cols].dropna())
+            st.pyplot(sns_plot)
+            path = os.path.join(st.session_state.temp_dir, f"table_{i}_matrix_{safe_filename(numeric_cols[0])}.png")
+            sns_plot.savefig(path)
+            plt.close()
+            st.session_state.plot_paths.append(path)
 
-        # Correlation Heatmap
         if len(numeric_cols) >= 2:
             st.markdown("#### 🌡️ Correlation Heatmap")
             corr = df[numeric_cols].corr()
             fig, ax = plt.subplots(figsize=(10, 6))
-            sns.heatmap(
-                corr,
-                annot=True,
-                cmap="RdYlGn",
-                fmt=".2f",
-                linewidths=0.5,
-                linecolor='gray',
-                cbar_kws={"shrink": .75}
-            )
+            sns.heatmap(corr, annot=True, cmap="RdYlGn", fmt=".2f", linewidths=0.5, linecolor='gray', cbar_kws={"shrink": .75})
             ax.set_title("Correlation Matrix", fontsize=14)
             st.pyplot(fig)
             path = os.path.join(st.session_state.temp_dir, f"table_{i}_heatmap.png")
@@ -156,42 +121,34 @@ def analyze(tables):
             plt.close(fig)
             st.session_state.plot_paths.append(path)
 
-        # Multi-Line Trend Plot
         if len(numeric_cols) >= 2:
             st.markdown("#### 📈 Multi-Line Trend Plot")
-            fig = px.line(
-                df[numeric_cols],
-                title="Multi-Line Trend of Numeric Columns",
-                markers=True,
-                template="plotly_dark"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            plt.figure(figsize=(10, 6))
+            for col in numeric_cols:
+                plt.plot(df[col], label=col)
+            plt.legend()
+            plt.title("Multi-Line Trend of Numeric Columns")
+            st.pyplot(plt)
             path = os.path.join(st.session_state.temp_dir, f"table_{i}_line_trend.png")
-            save_file_as_image(fig,path)            
+            save_plt(path)
 
-        # 📊 Categorical Columns (object or low unique count)
         cat_cols = [
             col for col in df.columns
             if df[col].dtype == 'object' or df[col].nunique() <= 5
         ]
 
         if cat_cols:
-            st.markdown("#### 🧩 Categorical Columns Overview")
+            st.markdown("#### 🪩 Categorical Columns Overview")
             for col in cat_cols:
                 try:
-                    fig = px.histogram(
-                        df,
-                        x=col,
-                        color_discrete_sequence=["#FF6F61"],
-                        title=f"Count Plot for '{col}'"
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                    safe_col=re.sub(r'[^a-zA-Z0-9_]','_',col)[:50]  #sanitize and truncate 
-                    path = os.path.join(st.session_state.temp_dir, f"table_{i}_cat_{safe_col}.png")
-                    save_file_as_image(fig,path)
+                    plt.figure(figsize=(8, 5))
+                    df[col].value_counts().plot(kind='bar', color='#FF6F61')
+                    plt.title(f"Count Plot for '{col}'")
+                    st.pyplot(plt)
+                    path = os.path.join(st.session_state.temp_dir, f"table_{i}_cat_{safe_filename(col)}.png")
+                    save_plt(path)
                 except Exception as e:
                     st.warning(f"⚠️ Skipped column '{col}': {e}")
-
 
         else:
             st.info("No numeric data available for plotting in this table.")
