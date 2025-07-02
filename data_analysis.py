@@ -73,7 +73,7 @@ def analyze(tables):
             plt.close()
             st.session_state.plot_paths.append(path)
 
-        if len(numeric_cols) >= 2:
+        if "Scatter Plot" in st.session_state.get("selected_plots",[]) and len(numeric_cols) >= 2:
             selectable_cols = list(numeric_cols[1:])
             if len(selectable_cols) >= 2:
                 random_cols = random.sample(selectable_cols, 2)
@@ -88,7 +88,7 @@ def analyze(tables):
                 path = os.path.join(st.session_state.temp_dir, f"table_{i}_scatter_{safe_filename(random_cols[0])}_{safe_filename(random_cols[1])}.png")
                 save_plt(path)
 
-        elif len(numeric_cols) == 1:
+        elif "Bar Plot" in st.session_state.get("selected_plots",[]) and len(numeric_cols) == 1:
             col_to_plot = df[numeric_cols].std().idxmax()
             st.write(f"### 📊 Bar Plot: `{col_to_plot}`")
             plt.figure(figsize=(10, 6))
@@ -100,7 +100,7 @@ def analyze(tables):
             path = os.path.join(st.session_state.temp_dir, f"table_{i}_bar_{safe_filename(col_to_plot)}.png")
             save_plt(path)
 
-        if len(numeric_cols) >= 3:
+        if "Scatter Matrix" in st.session_state.get("selected_plots",[]) and len(numeric_cols) >= 3:
             st.markdown("#### 🔁 Scatter Matrix (Pairwise)")
             sns_plot = sns.pairplot(df[numeric_cols].dropna())
             st.pyplot(sns_plot)
@@ -109,7 +109,7 @@ def analyze(tables):
             plt.close()
             st.session_state.plot_paths.append(path)
 
-        if len(numeric_cols) >= 2:
+        if "Co-relation Heatmap" in st.session_state.get("selected_plots" , []) and len(numeric_cols) >= 2:
             st.markdown("#### 🌡️ Correlation Heatmap")
             corr = df[numeric_cols].corr()
             fig, ax = plt.subplots(figsize=(10, 6))
@@ -121,7 +121,7 @@ def analyze(tables):
             plt.close(fig)
             st.session_state.plot_paths.append(path)
 
-        if len(numeric_cols) >= 2:
+        if "Multi line trend" in st.session_state.get("selected_plots",[]) and len(numeric_cols) >= 2:
             st.markdown("#### 📈 Multi-Line Trend Plot")
             plt.figure(figsize=(10, 6))
             for col in numeric_cols:
@@ -137,7 +137,7 @@ def analyze(tables):
             if df[col].dtype == 'object' or df[col].nunique() <= 5
         ]
 
-        if cat_cols:
+        if "Categorical columns Plot" in st.session_state.get("selected_plots",[]) and cat_cols:
             st.markdown("#### 🪩 Categorical Columns Overview")
             for col in cat_cols:
                 try:

@@ -68,11 +68,18 @@ def get_vector_store(text_chunks):
 
 def get_conversational_chain():
     prompt_template="""
-    Answer the question as detailed as possible from the provided context , 
-    and make sure to provide all the deatils , also you are a helpful AI assistant that can answer questions and generate code snippets when needed.
-    Use the context to answer accurately. If it's a programming-related question, provide clean and a runnable code snippet.
-    if the answer is not in
-    provided context just say , "answer is not available in the context ", don't provide the wrong answer.
+    You are an intelligent and reliable AI assistant named "InsightIQ - A bot who can analyze and chat with the documents" created by Darshan Jain , designed to extract meaningful insights and generate accurate responses from the provided context.
+    You can also respond politely to general questions like your identity and greetings. (e.g: "Hello" ,"Who are you?" , etc). 
+    Your responsibilities include answering questions in detail, generating correct , clean and executable code if needed and asked , and staying strictly within the information provided.
+
+    INSTRUCTIONS:
+    - Always use only the context provided below to answer the question.
+    - If the question is about content, facts, or data, always use only the provided context to answer.
+    - If the question is about code, provide clean, well-commented, and runnable code snippets.
+    - If the answer is not found in the context, respond with:
+    "The answer is not available in the provided context."
+    - Do NOT generate answers based on your own knowledge if it’s not present in the context.
+
     Context:\n{context}?\n
     Question:\n{question}\n
 
@@ -175,7 +182,14 @@ def main():
 
     #tb2: analysis
     with tab2:
-        st.subheader("📊 Extract and Analyze Tables from PDFs")
+        st.markdown("### 🎯 Select Plots to Generate")      ##Multiselect dropdown for analysis
+        plot_options=st.multiselect(
+            "Choose plots you want to include in analysis:",
+            ["Scatter Plot" , "Bar Plot" , "Sactter Matrix" , "Co-relation Heatmap" , "Multi line trend" , "Categorical columns PLot"],
+            default=["Scatter Plot" , "Bar Plot"]
+        )
+        st.session_state["selected_plots"]=plot_options
+        
         if st.button("🔍 Run Table Analysis"):
             if not pdf_docs:
                 st.warning("Please upload a PDF file for analysis.")
@@ -186,7 +200,7 @@ def main():
                     analyze(tables)
                     st.success("Table extraction and analysis complete!")
 
-        if st.button("📄 Export PDF"):
+        if st.button("📄 Export PDF"):      ##Export pdf
             if "tables" not in st.session_state:
                 st.warning("Please analyze the document first")
             else:
