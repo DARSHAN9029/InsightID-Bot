@@ -10,23 +10,25 @@ from langchain.prompts import PromptTemplate
 from langchain.chains.question_answering import load_qa_chain
 import pandas as pd
 from langchain.embeddings import HuggingFaceEmbeddings
+import torch
 
+
+st.set_page_config(page_title="InsightIQ", page_icon="📊", layout="wide")
 
 from data_analysis import extract_from_tables_pdf, analyze
 from export import export_file
-
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
 
 
-#go through each and every pdf and extracts the texts from pdf
+#PDF and CSV
 def get_pdf_text(pdf_docs):
     problems=[]
     text=""
     for pdf in pdf_docs:
         pdf_reader=PdfReader(pdf)
-        pdf.seek(0)         #file pointer at beginning
+        pdf.seek(0)         
         for page in pdf_reader.pages:
             page_text=page.extract_text() or ""
             text+= page_text
@@ -34,33 +36,30 @@ def get_pdf_text(pdf_docs):
             for line in lines:
                 if "Q" in line or "Question" in line or "Problem" in line or "Write a function" in line or "solve" in line:
                     problems.append(line.strip())
-
     return text , problems
 
-#go through each and every csv file and extracts the texts from csv
+
 def get_csv_text(csv_docs):
     text=""
     for file in csv_docs:
         if file.name.endswith(".csv"):
             df=pd.read_csv(file)
-            text+= df.to_string(index=False)        #converts df into texts
+            text+= df.to_string(index=False)        
     return text
 
 
-
-#dividing the text into chunks
 def get_text_chunks(text):
     text_splitter=RecursiveCharacterTextSplitter(chunk_size=10000,chunk_overlap=1000)
     chunks=text_splitter.split_text(text)
     return chunks
 
 
-
-#storing chunks in the vector database and upload the embeddings
 def get_vector_store(text_chunks):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     embeddings=HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
-        model_kwargs={"device":"cpu"})
+        model_kwargs={"device":device})
     
     vector_store=FAISS.from_texts(text_chunks,embedding=embeddings)
     vector_store.save_local("faiss_index")
@@ -87,20 +86,17 @@ def get_conversational_chain():
     Answer:
     """
 
-    model=ChatGoogleGenerativeAI(model="gemini-1.5-flash",temperature=0.3)
+    model=ChatGoogleGenerativeAI(model="gemini-2.5-pro",temperature=0.3)
 
     prompt=PromptTemplate(template=prompt_template,input_variables=["context","question"])
     chain=load_qa_chain(model,chain_type="stuff",prompt=prompt)
     return chain
 
 
-#wrt user
 def user_input(user_question):
     embbeddings=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
     new_db=FAISS.load_local("faiss_index",embbeddings,allow_dangerous_deserialization=True)
     docs=new_db.similarity_search(user_question)
-
     chain=get_conversational_chain()
 
     response=chain(
@@ -113,21 +109,22 @@ def user_input(user_question):
 
 #streamlit app
 def main():
-    st.set_page_config(page_title="InsightIQ", page_icon="📊", layout="wide")
-
     st.markdown(
         "<h1 style='text-align: center; color: ##c5fcc4;'>📊 InsightIQ</h1>"
         "<h4 style='text-align: center; color: grey;'>A Smart Assistant to Analyze & Chat with your Documents</h4><hr>",
         unsafe_allow_html=True
     )
 
-
-    # Tabs for interaction
     tab1, tab2 = st.tabs(["💬 CHAT", "📈 ANALYZE"])
 
-    # Session for chat history
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    if "is_tabular" not in st.session_state:
+        st.session_state.is_tabular=False
+    if "analysis_triggered" not in st.session_state:
+        st.session_state.analysis_triggered = False
+    if "plots_generated" not in st.session_state:
+        st.session_state.plots_generated= False
 
     with st.sidebar:
         st.title("📁 Upload Zone")
@@ -153,10 +150,7 @@ def main():
                         get_vector_store(chunks)
                         st.success("Files processed and embedded successfully!")
                         st.toast("Uploaded and Vectorized!", icon="✅")
-
-
-
-    #tab1:chat wth pdf
+    # Chat Tab
     with tab1:
         if st.session_state.get("messages"):
             for msg in st.session_state.messages:
@@ -180,13 +174,12 @@ def main():
             st.session_state.messages.append({"role": "assistant", "content": reply})
 
 
-
-    #tb2: analysis
+    # Analysis Tab
     with tab2:
-        st.markdown("### 🎯 Select Plots to Generate")      ##Multiselect dropdown for analysis
+        st.markdown("### 🎯 Select Plots to Generate")      
         plot_options=st.multiselect(
             "Choose plots you want to include in analysis:",
-            ["Scatter Plot" , "Bar Plot" , "Sactter Matrix" , "Co-relation Heatmap" , "Multi line trend" , "Categorical columns PLot"],
+            ["Scatter Plot" , "Bar Plot" , "Scatter Matrix" , "Co-relation Heatmap" , "Multi line trend" , "Categorical columns Plot"],
             default=["Scatter Plot" , "Bar Plot"]
         )
         st.session_state["selected_plots"]=plot_options
@@ -201,7 +194,7 @@ def main():
                     analyze(tables)
                     st.success("Table extraction and analysis complete!")
 
-        if st.button("📄 Export PDF"):      ##Export pdf
+        if st.button("📄 Export PDF"):      
             if "tables" not in st.session_state:
                 st.warning("Please analyze the document first")
             else:
