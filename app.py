@@ -2,24 +2,21 @@ import streamlit as st
 import os
 from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-import google.generativeai as genai
-from langchain.vectorstores import FAISS
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
-from langchain.chains.question_answering import load_qa_chain
+from langchain_community.vectorstores import FAISS
+from langchain_core.prompts import PromptTemplate
+from langchain.chains import RetrievalQA
 import pandas as pd
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 import torch
+from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+load_dotenv()
 
 
 st.set_page_config(page_title="InsightIQ", page_icon="📊", layout="wide")
 
 from data_analysis import extract_from_tables_pdf, analyze
 from export import export_file
-
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-genai.configure(api_key=GOOGLE_API_KEY)
 
 
 #PDF and CSV
@@ -49,7 +46,7 @@ def get_csv_text(csv_docs):
 
 
 def get_text_chunks(text):
-    text_splitter=RecursiveCharacterTextSplitter(chunk_size=10000,chunk_overlap=1000)
+    text_splitter=RecursiveCharacterTextSplitter(chunk_size=2000,chunk_overlap=400)
     chunks=text_splitter.split_text(text)
     return chunks
 
@@ -86,32 +83,43 @@ def get_conversational_chain():
     Answer:
     """
 
-    model=ChatGoogleGenerativeAI(model="gemini-2.5-pro",temperature=0.3)
+    model = ChatGroq(
+    model="llama-3.1-8b-instant",
+    temperature=0.3,
+    groq_api_key=os.environ["GROQ_API_KEY"])
 
     prompt=PromptTemplate(template=prompt_template,input_variables=["context","question"])
-    chain=load_qa_chain(model,chain_type="stuff",prompt=prompt)
+
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+    vectorstore = FAISS.load_local(
+        "faiss_index",
+        embeddings,
+        allow_dangerous_deserialization=True)
+
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+    chain=RetrievalQA.from_chain_type(
+        llm=model,
+        chain_type="stuff",
+        retriever=retriever,
+        chain_type_kwargs={"prompt": prompt},
+        return_source_documents=True
+    )
     return chain
 
 
 def user_input(user_question):
-    embbeddings=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    new_db=FAISS.load_local("faiss_index",embbeddings,allow_dangerous_deserialization=True)
-    docs=new_db.similarity_search(user_question)
-    chain=get_conversational_chain()
+    chain = get_conversational_chain()
+    response = chain.invoke({"query": user_question})
 
-    response=chain(
-        {"input_documents":docs, "question":user_question},
-        return_only_outputs=True)
-    
-    print(response)
-    return response["output_text"]
+    return response["result"]
 
 
 #streamlit app
 def main():
     st.markdown(
         "<h1 style='text-align: center; color: ##c5fcc4;'>📊 InsightIQ</h1>"
-        "<h4 style='text-align: center; color: grey;'>A Smart Assistant to Analyze & Chat with your Documents</h4><hr>",
+        "<h4 style='text-align: center; color: grey;'>An Assistant to Analyze & Chat</h4><hr>",
         unsafe_allow_html=True
     )
 

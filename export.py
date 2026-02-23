@@ -1,39 +1,46 @@
-from fpdf import FPDF
-import os
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import landscape, A4
+from reportlab.lib.units import inch
 import tempfile
 import streamlit as st
-from PIL import Image
+import os
 
 
 def export_file(tables):
-    pdf=FPDF()
-    pdf.set_auto_page_break(auto=True , margin=15)
+    tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    doc = SimpleDocTemplate(tmpfile.name, pagesize=landscape(A4))
+    elements = []
+
+    styles = getSampleStyleSheet()
 
     for i, df in enumerate(tables):
-        pdf.add_page()
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 10, f"Table {i + 1}", ln=True)
+        elements.append(Paragraph(f"<b>Table {i+1}</b>", styles["Heading2"]))
+        elements.append(Spacer(1, 0.2 * inch))
 
-        pdf.set_font("Arial", size=10)
-        data = df.head(20).fillna("").astype(str).values.tolist()  # limit to 20 rows
-        col_width = pdf.w / (len(df.columns) + 1)
+        df = df.head(20).fillna("").astype(str)
 
-        # Column headers
-        for col_name in df.columns:
-            pdf.cell(col_width, 10, col_name[:15], border=1)
-        pdf.ln()
+        data = [df.columns.tolist()] + df.values.tolist()
 
-        # Rows
-        for row in data:
-            for cell in row:
-                pdf.cell(col_width, 10, cell[:15], border=1)
-            pdf.ln()
+        table = Table(data, repeatRows=1)
 
-        for path in st.session_state.get("plot_paths",[]):
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightblue),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("FONTSIZE", (0, 0), (-1, -1), 7),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+
+        elements.append(table)
+        elements.append(Spacer(1, 0.5 * inch))
+
+        # Add plots
+        for path in st.session_state.get("plot_paths", []):
             if path.endswith(".png") and os.path.exists(path):
-                pdf.add_page()
-                pdf.image(path, w=pdf.w - 20)
+                elements.append(Image(path, width=8*inch, height=4*inch))
+                elements.append(Spacer(1, 0.5 * inch))
 
-    with tempfile.NamedTemporaryFile(delete=False , suffix=".pdf") as tmpfile:
-        pdf.output(tmpfile.name)
-        return tmpfile.name
+    doc.build(elements)
+    return tmpfile.name
